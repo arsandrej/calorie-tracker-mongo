@@ -202,3 +202,4 @@ kubectl exec -n calorie-tracker mongo-1 -- mongosh --quiet --eval "rs.status().m
 - Collections and indexes are created lazily by MongoEngine on first write/query — there's no separate migration step, which is normal for MongoDB's schema-flexible model (unlike the `db.create_all()` / SQL migration step a relational backend needs).
 - The unique index on `users.email` is declared in `app/models.py` and enforced by MongoDB itself, so duplicate registrations are rejected correctly even with multiple backend replicas writing concurrently.
 - For a real production deployment you'd also want: authentication on the Mongo replica set itself (`--auth` + a keyfile, omitted here to keep the demo focused on replication), TLS between nodes, and an Ops Manager/Atlas-style backup strategy.
+- Test

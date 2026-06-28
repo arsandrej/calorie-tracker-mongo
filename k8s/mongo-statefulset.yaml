@@ -70,11 +70,14 @@ spec:
               command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
           readinessProbe:
             exec:
               command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
   volumeClaimTemplates:
     - metadata:
         name: mongo-storage
@@ -108,25 +111,34 @@ spec:
             - -c
             - |
               set -e
-              echo "Waiting for mongo-0 to accept connections..."
-              until mongosh --host mongo-0.mongo-service:27017 --eval "db.adminCommand('ping')" >/dev/null 2>&1; do
-                sleep 2
+              echo "Waiting for all MongoDB pods to be ready..."
+              sleep 10
+
+              for i in 0 1 2; do
+                until mongosh --host mongo-$i.mongo-service:27017 --eval "db.adminCommand('ping')" &>/dev/null; do
+                  echo "Waiting for mongo-$i..."
+                  sleep 3
+                done
+                echo "mongo-$i is ready"
               done
 
-              echo "Initiating replica set rs0 (no-op if it already exists)..."
-              mongosh --host mongo-0.mongo-service:27017 --eval '
-                try {
-                  rs.status();
-                  print("Replica set already initialized.");
-                } catch (e) {
+              echo "Checking if replica set already initialized..."
+              STATUS=$(mongosh --host mongo-0.mongo-service:27017 --eval "rs.status().ok" --quiet 2>/dev/null || echo "0")
+
+              if [ "$STATUS" = "1" ]; then
+                echo "Replica set already initialized, skipping..."
+                exit 0
+              else
+                echo "Initializing replica set..."
+                mongosh --host mongo-0.mongo-service:27017 --eval "
                   rs.initiate({
-                    _id: "rs0",
+                    _id: 'rs0',
                     members: [
-                      { _id: 0, host: "mongo-0.mongo-service:27017", priority: 2 },
-                      { _id: 1, host: "mongo-1.mongo-service:27017", priority: 1 },
-                      { _id: 2, host: "mongo-2.mongo-service:27017", priority: 1 }
+                      { _id: 0, host: 'mongo-0.mongo-service:27017', priority: 2 },
+                      { _id: 1, host: 'mongo-1.mongo-service:27017', priority: 1 },
+                      { _id: 2, host: 'mongo-2.mongo-service:27017', priority: 1 }
                     ]
-                  });
-                  print("Replica set initiated.");
-                }
-              '
+                  })
+                "
+                echo "Replica set initiated!"
+              fi

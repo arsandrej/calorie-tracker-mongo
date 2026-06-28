@@ -3,14 +3,10 @@ kind: Ingress
 metadata:
   name: calorie-ingress
   namespace: calorie-tracker
-  annotations:
-    # nginx.ingress.kubernetes.io/rewrite-target: /
-    # For production, add cert-manager annotations:
-    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: nginx
   rules:
-    - host: calorie-tracker.local  # Replace with your domain
+    - host: calorie-tracker.local
       http:
         paths:
           - path: /

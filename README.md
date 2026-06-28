@@ -148,7 +148,23 @@ Covers `SummaryCard`, `EntryForm`, `EntryList`, `EntryItem`, and `History`.
 Both suites run automatically in the GitHub Actions `test` job before any image is built or deployed.
 
 ## Kubernetes deployment
+### Initial setup
+```bash
+k3d cluster create calorie-tracker \
+  --servers 1 \
+  --agents 1 \
+  --port "8080:80@loadbalancer" \
+  --port "8443:443@loadbalancer" \
+  --k3s-arg "--disable=traefik@server:0"
 
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=180s
+```
+
+### k8s manifests
 ```bash
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/secret.yaml

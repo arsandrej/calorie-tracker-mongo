@@ -33,6 +33,6 @@ describe('EntryItem', () => {
     const onDelete = vi.fn();
     render(<EntryItem entry={sampleEntry} onEdit={() => {}} onDelete={onDelete} />);
     fireEvent.click(screen.getByText('Delete'));
-    expect(onDelete).toHaveBeenCalledWith(1);
+    expect(onDelete).toHaveBeenCalledWith(sampleEntry.id);
   });
 });

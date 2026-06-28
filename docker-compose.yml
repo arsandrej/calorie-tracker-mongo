@@ -1,0 +1,101 @@
+# Note: the top-level `version:` key is intentionally omitted -- it's
+# obsolete in the Compose Specification used by modern Docker Compose v2
+# (`docker compose ...`), which is assumed throughout this project's CI/CD
+# pipeline and docs.
+
+# --- MongoDB replica set -----------------------------------------------
+# Three mongod nodes form a single logical replica set ("rs0"). One is
+# elected PRIMARY (accepts writes), the other two are SECONDARY (replicate
+# the primary's oplog and can serve reads or take over automatically if
+# the primary goes down). This is the same topology you'd run in
+# production -- just three containers instead of three VMs/nodes -- and
+# it's what makes the database horizontally scalable for reads and
+# resilient to a single node failure, which a single Postgres container
+# never was.
+#
+# `mongo-init` runs once, calls rs.initiate(), and exits; it has no
+# `restart` policy so it doesn't loop forever once its job is done.
+services:
+  mongo1:
+    image: mongo:7
+    container_name: calorie-mongo1
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo1_data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mongo2:
+    image: mongo:7
+    container_name: calorie-mongo2
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo2_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mongo3:
+    image: mongo:7
+    container_name: calorie-mongo3
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo3_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mongo-init:
+    image: mongo:7
+    container_name: calorie-mongo-init
+    depends_on:
+      mongo1:
+        condition: service_healthy
+      mongo2:
+        condition: service_healthy
+      mongo3:
+        condition: service_healthy
+    volumes:
+      - ./mongo/init-replica.sh:/init-replica.sh:ro
+    entrypoint: ["bash", "/init-replica.sh"]
+    restart: "no"
+
+  backend:
+    build: ./backend
+    container_name: calorie-backend
+    environment:
+      - MONGODB_URI=mongodb://mongo1:27017,mongo2:27017,mongo3:27017/calorie_tracker?replicaSet=rs0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretkey}
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: calorie-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: calorie-tracker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: arsandrej27/calorie-tracker-backend:main
+          imagePullPolicy: Always
+          env:
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: calorie-secrets
+                  key: mongodb-uri
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: calorie-secrets
+                  key: jwt-secret
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: calorie-config
+                  key: port
+            - name: ALLOWED_ORIGINS
+              value: "http://calorie-tracker.local:8080"
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/db
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5

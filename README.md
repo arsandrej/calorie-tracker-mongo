@@ -203,3 +203,4 @@ kubectl exec -n calorie-tracker mongo-1 -- mongosh --quiet --eval "rs.status().m
 - The unique index on `users.email` is declared in `app/models.py` and enforced by MongoDB itself, so duplicate registrations are rejected correctly even with multiple backend replicas writing concurrently.
 - For a real production deployment you'd also want: authentication on the Mongo replica set itself (`--auth` + a keyfile, omitted here to keep the demo focused on replication), TLS between nodes, and an Ops Manager/Atlas-style backup strategy.
 - Test
+- Test again

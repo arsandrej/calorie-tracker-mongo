@@ -117,54 +117,54 @@ jobs:
           git push
 
   # Job 3: Deploy to Kubernetes (CD)
-  deploy:
-    needs: build-and-push
-    runs-on: self-hosted
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  # deploy:
+  #   needs: build-and-push
+  #   runs-on: self-hosted
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: 'latest'
+  #     - name: Install kubectl
+  #       uses: azure/setup-kubectl@v4
+  #       with:
+  #         version: 'latest'
 
-      - name: Configure kubeconfig
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+  #     - name: Configure kubeconfig
+  #       run: |
+  #         mkdir -p $HOME/.kube
+  #         echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
 
-      - name: Apply Kubernetes manifests
-        run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/secret.yaml
-          kubectl apply -f k8s/configmap.yaml
+  #     - name: Apply Kubernetes manifests
+  #       run: |
+  #         kubectl apply -f k8s/namespace.yaml
+  #         kubectl apply -f k8s/secret.yaml
+  #         kubectl apply -f k8s/configmap.yaml
 
-          # Mongo StatefulSet first, and wait for all 3 pods to be Ready
-          # before touching the replica set or the backend -- the backend
-          # would just crash-loop on its readiness probe otherwise.
-          kubectl apply -f k8s/mongo-statefulset.yaml
-          kubectl rollout status statefulset/mongo -n calorie-tracker --timeout=180s
+  #         # Mongo StatefulSet first, and wait for all 3 pods to be Ready
+  #         # before touching the replica set or the backend -- the backend
+  #         # would just crash-loop on its readiness probe otherwise.
+  #         kubectl apply -f k8s/mongo-statefulset.yaml
+  #         kubectl rollout status statefulset/mongo -n calorie-tracker --timeout=180s
 
-          # Jobs are immutable once created, so re-running this pipeline
-          # against a cluster that already has a replica set means
-          # deleting the previous Job object first. The script inside the
-          # Job is itself idempotent (rs.initiate() is a no-op if the
-          # replica set already exists), so this is safe to repeat.
-          kubectl delete job mongo-replica-init -n calorie-tracker --ignore-not-found
-          kubectl apply -f k8s/mongo-statefulset.yaml
-          kubectl wait --for=condition=complete job/mongo-replica-init -n calorie-tracker --timeout=120s
+  #         # Jobs are immutable once created, so re-running this pipeline
+  #         # against a cluster that already has a replica set means
+  #         # deleting the previous Job object first. The script inside the
+  #         # Job is itself idempotent (rs.initiate() is a no-op if the
+  #         # replica set already exists), so this is safe to repeat.
+  #         kubectl delete job mongo-replica-init -n calorie-tracker --ignore-not-found
+  #         kubectl apply -f k8s/mongo-statefulset.yaml
+  #         kubectl wait --for=condition=complete job/mongo-replica-init -n calorie-tracker --timeout=120s
 
-          kubectl apply -f k8s/backend-deployment.yaml
-          kubectl apply -f k8s/backend-service.yaml
-          kubectl apply -f k8s/frontend-nginx-config.yaml
-          kubectl apply -f k8s/frontend-deployment.yaml
-          kubectl apply -f k8s/frontend-service.yaml
-          kubectl apply -f k8s/ingress.yaml
+  #         kubectl apply -f k8s/backend-deployment.yaml
+  #         kubectl apply -f k8s/backend-service.yaml
+  #         kubectl apply -f k8s/frontend-nginx-config.yaml
+  #         kubectl apply -f k8s/frontend-deployment.yaml
+  #         kubectl apply -f k8s/frontend-service.yaml
+  #         kubectl apply -f k8s/ingress.yaml
 
-      - name: Verify deployment
-        run: |
-          kubectl rollout status deployment/backend -n calorie-tracker --timeout=120s
-          kubectl rollout status deployment/frontend -n calorie-tracker --timeout=120s
-          kubectl get pods -n calorie-tracker
+  #     - name: Verify deployment
+  #       run: |
+  #         kubectl rollout status deployment/backend -n calorie-tracker --timeout=120s
+  #         kubectl rollout status deployment/frontend -n calorie-tracker --timeout=120s
+  #         kubectl get pods -n calorie-tracker

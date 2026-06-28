@@ -156,7 +156,8 @@ k3d cluster create calorie-tracker \
   --port "8080:80@loadbalancer" \
   --port "8443:443@loadbalancer" \
   --k3s-arg "--disable=traefik@server:0"
-
+```
+```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
